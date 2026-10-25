@@ -1,0 +1,19 @@
+# Planned key=value configuration schema for the completed simulation.
+# Milestone A defines this schema; parsing is intentionally not implemented yet.
+
+minimum_processing_time=1
+maximum_processing_time=100
+scale_up_requests_per_server=80
+scale_down_requests_per_server=50
+scaling_cooldown_cycles=100
+# Each cycle performs one Bernoulli trial. Success creates one uniformly selected
+# batch containing 1 through maximum_requests_per_arrival requests.
+arrival_probability=0.25
+maximum_requests_per_arrival=3
+requests_per_starting_server=100
+random_seed=412
+default_output_mode=quiet
+
+# Inclusive blocked source-IP ranges may appear more than once.
+blocked_source_range=10.0.0.0-10.255.255.255
+blocked_source_range=192.168.0.0-192.168.255.255
