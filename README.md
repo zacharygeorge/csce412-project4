@@ -59,18 +59,18 @@ evidence. Verbose mode prints the same summaries plus meaningful generation,
 filtering, assignment, completion, and scaling events. Neither mode prints an
 unhelpful message for every unchanged clock cycle.
 
-## Milestone A status
+## Current implementation status
 
 The driver, ownership model, interfaces, contracts, configuration schema, and
-basic build are present. Plain request construction, configuration validation,
-input validation, and initial server construction are implemented only as needed
-to establish the design.
+basic build are present. Request construction, IPv4 validation, reproducible
+random request generation, and one-request-at-a-time WebServer processing are
+implemented and covered by focused automated tests.
 
-The following operations deliberately throw a `std::logic_error` naming the
-unfinished method: configuration-file parsing, random request generation, IP-range
-matching, request assignment/processing, queue initialization, arrival generation,
-firewall filtering, dynamic scaling, simulation cycles, and final summary output.
-The executable therefore compiles but is not yet a working simulation.
+The following operations deliberately throw a `NotImplementedError` naming the
+unfinished method: configuration-file parsing, IP-range matching, load-balancer
+queue initialization and submission, arrival generation, firewall filtering,
+dynamic scaling, simulation cycles, and final summary output. The executable
+therefore compiles but is not yet a working end-to-end simulation.
 
 ## Build
 
@@ -78,6 +78,7 @@ On this Windows development environment:
 
 ```powershell
 mingw32-make
+mingw32-make test
 mingw32-make clean
 ```
 
@@ -85,6 +86,7 @@ On a standard GNU Make environment:
 
 ```sh
 make
+make test
 make clean
 ```
 

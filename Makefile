@@ -4,10 +4,14 @@ CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic
 
 ifeq ($(OS),Windows_NT)
 TARGET := load_balancer.exe
-CLEAN_COMMAND = powershell -NoProfile -Command "$$files = @('src/main.o','src/Config.o','src/Request.o','src/WebServer.o','src/LoadBalancer.o','src/main.d','src/Config.d','src/Request.d','src/WebServer.d','src/LoadBalancer.d','load_balancer','load_balancer.exe'); foreach ($$file in $$files) { if (Test-Path -LiteralPath $$file) { Remove-Item -Force -LiteralPath $$file } }"
+TEST_TARGET := request_webserver_tests.exe
+RUN_TESTS := request_webserver_tests.exe
+CLEAN_COMMAND = powershell -NoProfile -Command "$$files = @('src/main.o','src/Config.o','src/Request.o','src/WebServer.o','src/LoadBalancer.o','src/main.d','src/Config.d','src/Request.d','src/WebServer.d','src/LoadBalancer.d','load_balancer','load_balancer.exe','request_webserver_tests','request_webserver_tests.exe'); foreach ($$file in $$files) { if (Test-Path -LiteralPath $$file) { Remove-Item -Force -LiteralPath $$file } }"
 else
 TARGET := load_balancer
-CLEAN_COMMAND = rm -f $(OBJECTS) $(DEPENDENCIES) load_balancer load_balancer.exe
+TEST_TARGET := request_webserver_tests
+RUN_TESTS := ./request_webserver_tests
+CLEAN_COMMAND = rm -f $(OBJECTS) $(DEPENDENCIES) load_balancer load_balancer.exe request_webserver_tests request_webserver_tests.exe
 endif
 
 SOURCES := src/main.cpp \
@@ -17,8 +21,10 @@ SOURCES := src/main.cpp \
 	src/LoadBalancer.cpp
 OBJECTS := $(SOURCES:.cpp=.o)
 DEPENDENCIES := $(OBJECTS:.o=.d)
+TEST_SOURCES := tests/request_webserver_tests.cpp src/Request.cpp src/WebServer.cpp
+TEST_HEADERS := include/Request.h include/WebServer.h
 
-.PHONY: all clean
+.PHONY: all clean test
 
 all: $(TARGET)
 
@@ -27,6 +33,12 @@ $(TARGET): $(OBJECTS)
 
 src/%.o: src/%.cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -c $< -o $@
+
+$(TEST_TARGET): $(TEST_SOURCES) $(TEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(TEST_SOURCES) -o $@
+
+test: $(TEST_TARGET)
+	$(RUN_TESTS)
 
 clean:
 	$(CLEAN_COMMAND)

@@ -33,7 +33,6 @@ public:
      * @param request Request value removed from the LoadBalancer queue.
      * @throws std::logic_error if this server is already busy.
      * @post The server is busy and remaining time equals request.processingTime().
-     * @note Assignment behavior is intentionally unimplemented in Milestone A.
      */
     void acceptRequest(Request request);
 
@@ -42,7 +41,6 @@ public:
      *
      * @return The completed request on its finishing cycle; otherwise std::nullopt.
      * @post A completed request is removed and the server becomes idle.
-     * @note Processing behavior is intentionally unimplemented in Milestone A.
      */
     std::optional<Request> advanceOneCycle();
 

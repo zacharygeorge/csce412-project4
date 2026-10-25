@@ -14,7 +14,8 @@ public:
      * @param destinationIp Destination dotted-decimal IPv4 address.
      * @param processingTime Required positive number of clock cycles.
      * @param jobType 'P' for processing or 'S' for streaming.
-     * @throws std::invalid_argument for a non-positive time or unsupported job type.
+     * @throws std::invalid_argument for an invalid IPv4 address, non-positive time,
+     *         or unsupported job type.
      */
     Request(std::string sourceIp,
             std::string destinationIp,
@@ -29,7 +30,6 @@ public:
      * @param maximumProcessingTime Inclusive upper processing-time bound.
      * @return A request with random IPs, processing time, and P/S job type.
      * @throws std::invalid_argument if the processing-time range is invalid.
-     * @note Random generation is intentionally unimplemented in Milestone A.
      */
     static Request generateRandom(std::mt19937& randomEngine,
                                   int minimumProcessingTime,
