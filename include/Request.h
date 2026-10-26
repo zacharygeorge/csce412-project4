@@ -4,7 +4,15 @@
 #include <random>
 #include <string>
 
-/** A single unit of work submitted to the load balancer. */
+/**
+ * @brief Immutable description of one unit of work submitted to the load balancer.
+ *
+ * A request stores the source and destination IPv4 addresses, the number of
+ * clock cycles required to process it, and its processing (`P`) or streaming
+ * (`S`) job type. LoadBalancer generates and queues Request values, then moves
+ * them into idle WebServer objects. The object itself does not track execution
+ * progress; WebServer owns that state.
+ */
 class Request {
 public:
     /**
@@ -47,7 +55,10 @@ public:
     /** @return 'P' for processing or 'S' for streaming. */
     char jobType() const noexcept;
 
-    /** @return true only for assignment-supported job types 'P' and 'S'. */
+    /**
+     * @param jobType Candidate job-type character.
+     * @return true only for assignment-supported job types 'P' and 'S'.
+     */
     static bool isSupportedJobType(char jobType) noexcept;
 
 private:

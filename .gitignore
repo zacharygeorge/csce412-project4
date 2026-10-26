@@ -42,6 +42,8 @@
 build/
 Build/
 build-*/
+docs/generated/
+submission/*.zip
 
 # CMake generated files
 CMakeFiles/

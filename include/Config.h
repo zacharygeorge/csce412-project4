@@ -15,7 +15,9 @@ enum class OutputMode {
 
 /** An inclusive IPv4 address range used to block request source addresses. */
 struct IpRange {
+    /** Inclusive first IPv4 address in dotted-decimal notation. */
     std::string firstAddress;
+    /** Inclusive last IPv4 address in dotted-decimal notation. */
     std::string lastAddress;
 
     /**
@@ -28,18 +30,36 @@ struct IpRange {
     bool contains(std::string_view address) const;
 };
 
-/** Runtime settings loaded before a LoadBalancer is constructed. */
+/**
+ * @brief Validated runtime settings loaded before a LoadBalancer is constructed.
+ *
+ * Settings control request duration, arrival traffic, dynamic scaling, random
+ * reproducibility, output mode, initial workload size, and blocked source-IP
+ * ranges. Scalar settings occur once in the configuration file; blocked ranges
+ * may be repeated.
+ */
 struct SimulationConfig {
+    /** Inclusive minimum randomly generated processing duration. */
     int minimumProcessingTime = 1;
+    /** Inclusive maximum randomly generated processing duration. */
     int maximumProcessingTime = 100;
+    /** Strict scale-up queue multiplier. */
     std::size_t scaleUpRequestsPerServer = 80;
+    /** Strict scale-down queue multiplier. */
     std::size_t scaleDownRequestsPerServer = 50;
+    /** Minimum cycles between successful server-count changes. */
     std::uint64_t scalingCooldownCycles = 100;
+    /** Per-cycle probability of generating one arrival batch. */
     double arrivalProbability = 0.25;
+    /** Inclusive maximum uniformly chosen arrival-batch size. */
     std::size_t maximumRequestsPerArrival = 3;
+    /** Accepted startup requests requested per initial server. */
     std::size_t requestsPerStartingServer = 100;
+    /** Seed used by the load balancer's reproducible random engine. */
     std::uint32_t randomSeed = 412;
+    /** Mode offered as the default at the interactive prompt. */
     OutputMode defaultOutputMode = OutputMode::Quiet;
+    /** Inclusive source-IP ranges rejected before queue admission. */
     std::vector<IpRange> blockedSourceRanges;
 
     /**

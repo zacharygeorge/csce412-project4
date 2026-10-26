@@ -6,10 +6,24 @@
 #include <cstddef>
 #include <optional>
 
-/** A simulated web server that processes at most one request at a time. */
+/**
+ * @brief Executes at most one Request, one simulated clock cycle at a time.
+ *
+ * LoadBalancer assigns a queued Request only while the server is idle. Each
+ * call to advanceOneCycle() consumes exactly one unit of the assigned request's
+ * processing time. On the finishing call, the completed Request is returned to
+ * LoadBalancer for accounting and the server becomes idle again.
+ *
+ * @invariant An idle server has no current request and zero remaining time.
+ * @invariant A busy server has one current request and positive remaining time.
+ */
 class WebServer {
 public:
-    /** @param identifier Stable identifier used in verbose event messages. */
+    /**
+     * @param identifier Positive stable identifier used in verbose event messages.
+     * @throws std::invalid_argument when identifier is zero.
+     * @post The new server is idle with zero remaining processing time.
+     */
     explicit WebServer(std::size_t identifier);
 
     /** @return This server's stable identifier. */
@@ -40,6 +54,7 @@ public:
      * Advances the current request by exactly one clock cycle.
      *
      * @return The completed request on its finishing cycle; otherwise std::nullopt.
+     * Calling this method while idle is safe and returns std::nullopt.
      * @post A completed request is removed and the server becomes idle.
      */
     std::optional<Request> advanceOneCycle();

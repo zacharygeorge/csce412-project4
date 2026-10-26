@@ -1,0 +1,76 @@
+/**
+ * @mainpage CSCE 412 Project 4: Load Balancer Simulation
+ *
+ * @section purpose Project purpose
+ *
+ * This C++17 program simulates a single load balancer serving randomized web
+ * requests with a dynamically sized group of web servers. It demonstrates a
+ * real FIFO queue, cycle-based processing, reproducible traffic, source-IP
+ * filtering, dynamic capacity management, and execution statistics.
+ *
+ * @section workflow Request workflow
+ *
+ * 1. Request::generateRandom() creates a request containing source and
+ *    destination IPv4 addresses, a processing duration, and a `P` or `S` job
+ *    type.
+ * 2. LoadBalancer::submitRequest() applies every configured blocked source-IP
+ *    range. Rejected requests are counted but never enter the queue.
+ * 3. Accepted requests enter the LoadBalancer's `std::queue<Request>` and wait
+ *    in first-in, first-out order.
+ * 4. LoadBalancer assigns the oldest queued request to each idle WebServer.
+ * 5. WebServer::advanceOneCycle() reduces the current request's remaining time.
+ *    The finishing call returns the request to LoadBalancer for completion
+ *    accounting, then the server is idle again.
+ *
+ * @section responsibilities Main components
+ *
+ * - Request is an immutable description of a unit of work.
+ * - WebServer owns one active request and its remaining processing time.
+ * - LoadBalancer owns the FIFO queue, dynamic server vector, simulation clock,
+ *   random engine, firewall boundary, scaling policy, and statistics.
+ * - SimulationConfig loads and validates external settings from `config.txt`.
+ * - `main.cpp` handles configuration, interactive input, construction, the
+ *   requested cycle loop, error handling, and the final summary.
+ *
+ * @section cycle Simulation cycle
+ *
+ * Each call to LoadBalancer::runCycle() performs this fixed sequence:
+ *
+ * 1. Advance the simulation clock.
+ * 2. Attempt a configured random arrival batch and filter every candidate.
+ * 3. Advance requests that were already assigned and record completions.
+ * 4. Assign queued requests FIFO to servers that are now idle.
+ * 5. Evaluate at most one dynamic scaling action if the cooldown allows it.
+ * 6. Refresh current queue, server, and processing statistics.
+ *
+ * Because processing precedes assignment, newly assigned requests begin work
+ * on the next cycle. This gives every request exactly its declared number of
+ * WebServer processing steps.
+ *
+ * @section scaling Dynamic scaling
+ *
+ * The server pool grows by one when queue size is strictly greater than
+ * `scale_up_requests_per_server * current_server_count`. It shrinks by one when
+ * queue size is strictly less than
+ * `scale_down_requests_per_server * current_server_count`. Scale-down removes
+ * only an idle server and never reduces the pool below one, so an active request
+ * is never lost. A successful change starts the configurable cooldown; a failed
+ * removal does not.
+ *
+ * @section configuration Configuration, firewall, and output
+ *
+ * `config.txt` controls processing-time bounds, threshold multipliers, cooldown,
+ * random-arrival behavior, startup requests per server, random seed, default
+ * output mode, and zero or more inclusive blocked source-IP ranges. Quiet mode
+ * prints concise starting and ending summaries. Verbose mode adds meaningful
+ * generation, filtering, assignment, completion, and scaling events.
+ *
+ * @section accounting Accounting guarantees
+ *
+ * The implementation maintains these relationships:
+ *
+ * - generated = accepted + rejected
+ * - accepted = completed + queued + processing
+ * - current servers = starting servers + added - removed
+ * - current servers = busy + idle
+ */
