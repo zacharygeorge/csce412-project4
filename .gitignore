@@ -43,7 +43,7 @@ build/
 Build/
 build-*/
 docs/generated/
-submission/*.zip
+submission/
 
 # CMake generated files
 CMakeFiles/
@@ -57,6 +57,23 @@ compile_commands.json
 *.log
 *.bak
 *.swp
+*.swo
+*~
+*.stackdump
+
+# Coverage output
+*.gcda
+*.gcno
+*.gcov
+coverage/
+
+# IDE and operating-system metadata
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
 
 # vcpkg
 vcpkg_installed/
