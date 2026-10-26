@@ -36,6 +36,8 @@ struct SimulationStatistics {
     std::uint64_t requestsRejected = 0;
     std::uint64_t requestsCompleted = 0;
     std::uint64_t requestsDiscarded = 0;
+    std::uint64_t randomArrivalBatches = 0;
+    std::uint64_t randomArrivalRequestsGenerated = 0;
 
     std::size_t startingQueueSize = 0;
     std::size_t currentQueueSize = 0;
@@ -77,8 +79,6 @@ public:
      * @throws std::runtime_error if the target cannot be reached within 100
      *         generated candidates per requested queue entry. This finite limit
      *         prevents an all-blocked configuration from hanging at startup.
-     * @throws NotImplementedError while configured firewall ranges remain reserved
-     *         for Milestone D.
      */
     void initializeRequestQueue(std::size_t acceptedRequestTarget,
                                 std::ostream& eventOutput);
@@ -91,8 +91,6 @@ public:
      * @return true if accepted into the queue; false if rejected by an IP range.
      * @post requestsGenerated and exactly one of requestsAccepted or
      *       requestsRejected are incremented, preserving generated = accepted + rejected.
-     * @note Milestone C accepts requests when no blocked ranges are configured.
-     *       Configured firewall matching remains an explicit Milestone D operation.
      */
     bool submitRequest(Request request, std::ostream& eventOutput);
 
@@ -115,7 +113,6 @@ public:
      *
      * @param output Stream that receives the summary.
      * @post No simulation state is changed.
-     * @note Complete summary output is intentionally unimplemented in Milestone A.
      */
     void printFinalSummary(std::ostream& output) const;
 
@@ -176,10 +173,7 @@ private:
      */
     bool removeIdleServer(std::ostream& eventOutput);
 
-    /**
-     * @return false when no firewall ranges are configured.
-     * @throws NotImplementedError when range matching is requested before Milestone D.
-     */
+    /** @return true when the source IP falls inside a configured blocked range. */
     bool isBlockedSourceIp(std::string_view sourceIp) const;
 
     /**
@@ -203,6 +197,7 @@ private:
     std::uint64_t currentClockCycle_ = 0;
     std::optional<std::uint64_t> lastSuccessfulScalingCycle_;
     std::size_t nextServerIdentifier_ = 1;
+    bool initializingRequestQueue_ = false;
 };
 
 #endif

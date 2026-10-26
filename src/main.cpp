@@ -1,6 +1,5 @@
 #include "Config.h"
 #include "LoadBalancer.h"
-#include "NotImplementedError.h"
 
 #include <charconv>
 #include <cstddef>
@@ -107,11 +106,20 @@ int main(int argc, char* argv[]) {
         LoadBalancer loadBalancer(initialServerCount, config, outputMode);
         const std::size_t initialRequestTarget = checkedInitialRequestCount(
             initialServerCount, config.requestsPerStartingServer);
-        loadBalancer.initializeRequestQueue(initialRequestTarget, std::cout);
 
-        std::cout << "Starting " << toString(outputMode) << " simulation with "
-                  << initialServerCount << " servers, " << initialRequestTarget
-                  << " queued requests, and " << clockCycles << " clock cycles.\n";
+        std::cout << "\n=== Simulation Start ===\n"
+                  << "Configuration file: " << configPath << '\n'
+                  << "Output mode: " << toString(outputMode) << '\n'
+                  << "Starting servers: " << initialServerCount << '\n'
+                  << "Starting queue size: " << initialRequestTarget << '\n'
+                  << "Clock cycles requested: " << clockCycles << '\n'
+                  << "Processing-time range: " << config.minimumProcessingTime
+                  << '-' << config.maximumProcessingTime << " cycles\n"
+                  << "Random seed: " << config.randomSeed << '\n'
+                  << "Blocked IP ranges: " << config.blockedSourceRanges.size()
+                  << "\n\n";
+
+        loadBalancer.initializeRequestQueue(initialRequestTarget, std::cout);
 
         for (std::uint64_t cycle = 0; cycle < clockCycles; ++cycle) {
             loadBalancer.runCycle(std::cout);
@@ -119,10 +127,6 @@ int main(int argc, char* argv[]) {
 
         loadBalancer.printFinalSummary(std::cout);
         return 0;
-    } catch (const NotImplementedError& error) {
-        std::cerr << "Milestone A stopped at an unfinished operation: "
-                  << error.what() << '\n';
-        return 3;
     } catch (const std::exception& error) {
         std::cerr << "Simulation error: " << error.what() << '\n';
         return 1;

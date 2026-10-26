@@ -24,7 +24,6 @@ struct IpRange {
      * @param address Dotted-decimal IPv4 address to test.
      * @return true when address is valid and between both endpoints.
      * @throws std::invalid_argument when this range or address is malformed.
-     * @note Firewall matching is intentionally unimplemented in Milestone A.
      */
     bool contains(std::string_view address) const;
 };
@@ -49,7 +48,6 @@ struct SimulationConfig {
      * @param path Path to the external configuration file.
      * @return A complete, validated configuration.
      * @throws std::runtime_error when the file cannot be read or a value is invalid.
-     * @note Full parsing is intentionally unimplemented in Milestone A.
      */
     static SimulationConfig loadFromFile(const std::string& path);
 

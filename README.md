@@ -1,9 +1,9 @@
 # CSCE 412 Project 4 - Load Balancer Simulation
 
 This repository models a single load balancer, a FIFO request queue, and a
-dynamically sized collection of web servers. Milestone A establishes the full
-program workflow and every class/function contract. Detailed simulation behavior
-is intentionally reserved for later milestones.
+dynamically sized collection of web servers. Runtime behavior is controlled by
+an external configuration file and supports deterministic request generation,
+firewall filtering, dynamic scaling, and quiet or verbose output.
 
 ## Architecture
 
@@ -61,16 +61,10 @@ unhelpful message for every unchanged clock cycle.
 
 ## Current implementation status
 
-The driver, ownership model, interfaces, contracts, configuration schema, and
-basic build are present. Request construction, reproducible random generation,
-one-request-at-a-time WebServer processing, FIFO queue assignment, incoming
-traffic, simulation cycles, core statistics, and cooldown-controlled dynamic
-scaling are implemented and covered by focused automated tests.
-
-The following operations deliberately throw a `NotImplementedError` naming the
-unfinished method: configuration-file parsing, IP-range matching, configured
-firewall filtering, and final summary output. The executable therefore compiles,
-but configuration loading still prevents it from running end to end.
+The simulator runs end to end. It loads and validates `config.txt`, creates and
+filters randomized requests, assigns accepted work FIFO, processes clock cycles,
+scales the server pool, and prints summaries derived from actual execution.
+Focused automated tests cover the component and integration behavior.
 
 ## Build
 
@@ -96,3 +90,11 @@ The executable accepts an optional configuration path; otherwise it uses
 ```text
 load_balancer [config-file]
 ```
+
+After starting, enter the starting server count, number of clock cycles, and
+quiet or verbose output mode. Redirect output to a file when producing a
+submission log.
+
+For a short deterministic demonstration with frequent firewall rejections and
+visible scaling, run `load_balancer.exe demo_config.txt`, then enter `2`, `25`,
+and `verbose` at the prompts.

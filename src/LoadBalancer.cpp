@@ -1,11 +1,12 @@
 #include "LoadBalancer.h"
-#include "NotImplementedError.h"
 
 #include <algorithm>
 #include <iterator>
 #include <limits>
 #include <ostream>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace {
@@ -25,6 +26,18 @@ bool isLessThanProduct(std::size_t value,
         return true;
     }
     return value < factor * count;
+}
+
+std::string describeRequest(const Request& request) {
+    std::ostringstream description;
+    description << request.sourceIp() << " -> " << request.destinationIp()
+                << ", type " << request.jobType() << ", "
+                << request.processingTime() << " cycles";
+    return description.str();
+}
+
+std::string_view scalingActionName(ScalingAction action) noexcept {
+    return action == ScalingAction::AddedServer ? "added" : "removed";
 }
 }  // namespace
 
@@ -65,36 +78,72 @@ void LoadBalancer::initializeRequestQueue(std::size_t acceptedRequestTarget,
             ? maximumSize
             : acceptedRequestTarget * 100;
 
+    const std::uint64_t generatedBefore = statistics_.requestsGenerated;
+    const std::uint64_t acceptedBefore = statistics_.requestsAccepted;
+    const std::uint64_t rejectedBefore = statistics_.requestsRejected;
     std::size_t attempts = 0;
-    while (requestQueue_.size() < acceptedRequestTarget &&
-           attempts < maximumAttempts) {
-        ++attempts;
-        submitRequest(Request::generateRandom(randomEngine_,
-                                              config_.minimumProcessingTime,
-                                              config_.maximumProcessingTime),
-                      eventOutput);
+    initializingRequestQueue_ = true;
+    try {
+        while (requestQueue_.size() < acceptedRequestTarget &&
+               attempts < maximumAttempts) {
+            ++attempts;
+            submitRequest(Request::generateRandom(randomEngine_,
+                                                  config_.minimumProcessingTime,
+                                                  config_.maximumProcessingTime),
+                          eventOutput);
+        }
+    } catch (...) {
+        initializingRequestQueue_ = false;
+        throw;
     }
+    initializingRequestQueue_ = false;
 
     if (requestQueue_.size() != acceptedRequestTarget) {
+        writeVerboseEvent(
+            eventOutput,
+            "initial queue generation failed after " +
+                std::to_string(statistics_.requestsGenerated - generatedBefore) +
+                " candidates; accepted " +
+                std::to_string(statistics_.requestsAccepted - acceptedBefore) +
+                ", rejected " +
+                std::to_string(statistics_.requestsRejected - rejectedBefore));
         throw std::runtime_error(
             "unable to generate the requested number of accepted initial requests");
     }
 
     statistics_.startingQueueSize = requestQueue_.size();
     refreshCurrentStatistics();
+    writeVerboseEvent(
+        eventOutput,
+        "initialized queue with " + std::to_string(requestQueue_.size()) +
+            " accepted requests from " +
+            std::to_string(statistics_.requestsGenerated - generatedBefore) +
+            " candidates; rejected " +
+            std::to_string(statistics_.requestsRejected - rejectedBefore));
 }
 
-bool LoadBalancer::submitRequest(Request request, std::ostream&) {
+bool LoadBalancer::submitRequest(Request request, std::ostream& eventOutput) {
     const bool blocked = isBlockedSourceIp(request.sourceIp());
     ++statistics_.requestsGenerated;
     if (blocked) {
         ++statistics_.requestsRejected;
+        if (!initializingRequestQueue_) {
+            writeVerboseEvent(eventOutput,
+                              "rejected request from blocked source " +
+                                  request.sourceIp());
+        }
         refreshCurrentStatistics();
         return false;
     }
 
+    const std::string description = describeRequest(request);
     requestQueue_.push(std::move(request));
     ++statistics_.requestsAccepted;
+    if (!initializingRequestQueue_) {
+        writeVerboseEvent(eventOutput,
+                          "accepted request " + description +
+                              "; queue size " + std::to_string(queueSize()));
+    }
     refreshCurrentStatistics();
     return true;
 }
@@ -108,8 +157,64 @@ void LoadBalancer::runCycle(std::ostream& eventOutput) {
     refreshCurrentStatistics();
 }
 
-void LoadBalancer::printFinalSummary(std::ostream&) const {
-    throw NotImplementedError("LoadBalancer::printFinalSummary");
+void LoadBalancer::printFinalSummary(std::ostream& output) const {
+    const bool requestAccountingIsConsistent =
+        statistics_.requestsGenerated ==
+            statistics_.requestsAccepted + statistics_.requestsRejected &&
+        statistics_.requestsAccepted ==
+            statistics_.requestsCompleted + queueSize() + busyServerCount();
+    const bool serverAccountingIsConsistent =
+        serverCount() == statistics_.startingServerCount +
+                             statistics_.serversAdded -
+                             statistics_.serversRemoved &&
+        serverCount() == busyServerCount() + idleServerCount();
+
+    output << "\n=== Simulation Summary ===\n"
+           << "Output mode: " << toString(outputMode_) << '\n'
+           << "Clock cycles completed: " << currentClockCycle_ << '\n'
+           << "Processing-time range: " << config_.minimumProcessingTime << '-'
+           << config_.maximumProcessingTime << " cycles\n"
+           << "Starting servers: " << statistics_.startingServerCount << '\n'
+           << "Starting queue size: " << statistics_.startingQueueSize << '\n'
+           << "Requests generated: " << statistics_.requestsGenerated << '\n'
+           << "Requests accepted: " << statistics_.requestsAccepted << '\n'
+           << "Requests rejected: " << statistics_.requestsRejected << '\n'
+           << "Requests completed: " << statistics_.requestsCompleted << '\n'
+           << "Requests discarded: " << statistics_.requestsDiscarded << '\n'
+           << "Random arrival batches: " << statistics_.randomArrivalBatches << '\n'
+           << "Random arrival requests: "
+           << statistics_.randomArrivalRequestsGenerated << '\n'
+           << "Ending queue size: " << queueSize() << '\n'
+           << "Requests processing: " << busyServerCount() << '\n'
+           << "Ending servers: " << serverCount() << '\n'
+           << "Busy servers: " << busyServerCount() << '\n'
+           << "Idle servers: " << idleServerCount() << '\n'
+           << "Servers added: " << statistics_.serversAdded << '\n'
+           << "Servers removed: " << statistics_.serversRemoved << '\n'
+           << "Minimum servers: " << statistics_.minimumServerCount << '\n'
+           << "Maximum servers: " << statistics_.maximumServerCount << '\n'
+           << "Scaling events: " << statistics_.scalingEvents.size() << '\n';
+
+    if (!statistics_.scalingEvents.empty()) {
+        const auto printEvent = [&output](std::string_view label,
+                                          const ScalingEvent& event) {
+            output << label << ": cycle " << event.clockCycle << ", "
+                   << scalingActionName(event.action) << " server, queue "
+                   << event.queueSize << ", servers " << event.serverCountBefore
+                   << " -> " << event.serverCountAfter << '\n';
+        };
+        printEvent("First scaling event", statistics_.scalingEvents.front());
+        if (statistics_.scalingEvents.size() > 1) {
+            printEvent("Last scaling event", statistics_.scalingEvents.back());
+        }
+    }
+
+    output << "Request accounting: "
+           << (requestAccountingIsConsistent ? "consistent" : "INCONSISTENT")
+           << '\n'
+           << "Server accounting: "
+           << (serverAccountingIsConsistent ? "consistent" : "INCONSISTENT")
+           << '\n';
 }
 
 std::uint64_t LoadBalancer::currentClockCycle() const noexcept {
@@ -155,6 +260,11 @@ void LoadBalancer::generateRandomArrivals(std::ostream& eventOutput) {
     std::uniform_int_distribution<std::size_t> batchSizeDistribution(
         1, config_.maximumRequestsPerArrival);
     const std::size_t batchSize = batchSizeDistribution(randomEngine_);
+    ++statistics_.randomArrivalBatches;
+    statistics_.randomArrivalRequestsGenerated += batchSize;
+    writeVerboseEvent(eventOutput,
+                      "generated arrival batch of " +
+                          std::to_string(batchSize) + " request(s)");
     for (std::size_t index = 0; index < batchSize; ++index) {
         submitRequest(Request::generateRandom(randomEngine_,
                                               config_.minimumProcessingTime,
@@ -163,15 +273,20 @@ void LoadBalancer::generateRandomArrivals(std::ostream& eventOutput) {
     }
 }
 
-void LoadBalancer::advanceServers(std::ostream&) {
+void LoadBalancer::advanceServers(std::ostream& eventOutput) {
     for (WebServer& server : servers_) {
-        if (server.advanceOneCycle().has_value()) {
+        std::optional<Request> completedRequest = server.advanceOneCycle();
+        if (completedRequest.has_value()) {
             ++statistics_.requestsCompleted;
+            writeVerboseEvent(
+                eventOutput,
+                "server " + std::to_string(server.identifier()) +
+                    " completed request " + describeRequest(*completedRequest));
         }
     }
 }
 
-void LoadBalancer::assignQueuedRequests(std::ostream&) {
+void LoadBalancer::assignQueuedRequests(std::ostream& eventOutput) {
     for (WebServer& server : servers_) {
         if (requestQueue_.empty()) {
             break;
@@ -179,6 +294,11 @@ void LoadBalancer::assignQueuedRequests(std::ostream&) {
         if (server.isIdle()) {
             server.acceptRequest(std::move(requestQueue_.front()));
             requestQueue_.pop();
+            writeVerboseEvent(
+                eventOutput,
+                "assigned request " + describeRequest(*server.currentRequest()) +
+                    " to server " + std::to_string(server.identifier()) +
+                    "; queue size " + std::to_string(queueSize()));
         }
     }
 }
@@ -200,7 +320,7 @@ void LoadBalancer::evaluateScaling(std::ostream& eventOutput) {
     }
 }
 
-void LoadBalancer::addServer(std::ostream&) {
+void LoadBalancer::addServer(std::ostream& eventOutput) {
     const std::size_t serverCountBefore = serverCount();
     servers_.emplace_back(nextServerIdentifier_++);
     ++statistics_.serversAdded;
@@ -210,9 +330,15 @@ void LoadBalancer::addServer(std::ostream&) {
         ScalingEvent{currentClockCycle_, ScalingAction::AddedServer, queueSize(),
                      serverCountBefore, serverCount()});
     lastSuccessfulScalingCycle_ = currentClockCycle_;
+    writeVerboseEvent(eventOutput,
+                      "scaled up: added server " +
+                          std::to_string(servers_.back().identifier()) +
+                          "; servers " + std::to_string(serverCountBefore) +
+                          " -> " + std::to_string(serverCount()) +
+                          ", queue size " + std::to_string(queueSize()));
 }
 
-bool LoadBalancer::removeIdleServer(std::ostream&) {
+bool LoadBalancer::removeIdleServer(std::ostream& eventOutput) {
     if (serverCount() <= 1) {
         return false;
     }
@@ -225,6 +351,7 @@ bool LoadBalancer::removeIdleServer(std::ostream&) {
     }
 
     const std::size_t serverCountBefore = serverCount();
+    const std::size_t removedIdentifier = idleServer->identifier();
     servers_.erase(std::prev(idleServer.base()));
     ++statistics_.serversRemoved;
     statistics_.minimumServerCount =
@@ -233,15 +360,19 @@ bool LoadBalancer::removeIdleServer(std::ostream&) {
         ScalingEvent{currentClockCycle_, ScalingAction::RemovedServer, queueSize(),
                      serverCountBefore, serverCount()});
     lastSuccessfulScalingCycle_ = currentClockCycle_;
+    writeVerboseEvent(eventOutput,
+                      "scaled down: removed idle server " +
+                          std::to_string(removedIdentifier) + "; servers " +
+                          std::to_string(serverCountBefore) + " -> " +
+                          std::to_string(serverCount()) + ", queue size " +
+                          std::to_string(queueSize()));
     return true;
 }
 
-bool LoadBalancer::isBlockedSourceIp(std::string_view) const {
-    if (config_.blockedSourceRanges.empty()) {
-        return false;
-    }
-    throw NotImplementedError(
-        "LoadBalancer::isBlockedSourceIp with configured firewall ranges");
+bool LoadBalancer::isBlockedSourceIp(std::string_view sourceIp) const {
+    return std::any_of(
+        config_.blockedSourceRanges.begin(), config_.blockedSourceRanges.end(),
+        [sourceIp](const IpRange& range) { return range.contains(sourceIp); });
 }
 
 bool LoadBalancer::scalingCooldownElapsed() const {

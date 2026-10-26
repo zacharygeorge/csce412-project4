@@ -1,5 +1,5 @@
-# Planned key=value configuration schema for the completed simulation.
-# Milestone A defines this schema; parsing is intentionally not implemented yet.
+# Load balancer runtime configuration. Whitespace and # comments are supported.
+# Scalar settings must appear exactly once; blocked ranges may be repeated.
 
 minimum_processing_time=1
 maximum_processing_time=100

@@ -1,0 +1,14 @@
+# Deterministic short-demo configuration for visible filtering and scaling.
+minimum_processing_time=1
+maximum_processing_time=5
+scale_up_requests_per_server=80
+scale_down_requests_per_server=50
+scaling_cooldown_cycles=5
+arrival_probability=1.0
+maximum_requests_per_arrival=3
+requests_per_starting_server=100
+random_seed=412
+default_output_mode=verbose
+
+# Blocks half of the IPv4 space so rejection events are easy to demonstrate.
+blocked_source_range=0.0.0.0-127.255.255.255

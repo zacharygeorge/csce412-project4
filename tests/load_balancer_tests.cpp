@@ -1,5 +1,4 @@
 #include "LoadBalancer.h"
-#include "NotImplementedError.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -17,18 +16,6 @@ void require(bool condition, const std::string& message) {
     if (!condition) {
         throw std::runtime_error(message);
     }
-}
-
-template <typename Exception, typename Function>
-void requireThrows(Function function, const std::string& message) {
-    try {
-        function();
-    } catch (const Exception&) {
-        return;
-    } catch (const std::exception& error) {
-        throw std::runtime_error(message + "; wrong exception: " + error.what());
-    }
-    throw std::runtime_error(message + "; no exception was thrown");
 }
 
 SimulationConfig makeConfig() {
@@ -145,19 +132,19 @@ void testInitialServerPoolAndStatistics() {
     requireAccountingInvariants(loadBalancer);
 }
 
-void testConfiguredFirewallRemainsExplicitlyUnimplemented() {
+void testConfiguredFirewallFiltersRequests() {
     std::ostringstream output;
     SimulationConfig config = makeConfig();
     config.blockedSourceRanges.push_back({"10.0.0.0", "10.255.255.255"});
     LoadBalancer loadBalancer(1, config, OutputMode::Quiet);
 
-    requireThrows<NotImplementedError>(
-        [&] { loadBalancer.submitRequest(makeRequest(1), output); },
-        "configured firewall was silently treated as implemented");
-    require(loadBalancer.statistics().requestsGenerated == 0,
-            "unfinished filtering partially changed request statistics");
-    require(loadBalancer.queueSize() == 0,
-            "unfinished filtering partially changed the request queue");
+    require(!loadBalancer.submitRequest(makeRequest(1), output),
+            "configured firewall accepted a blocked request");
+    require(loadBalancer.statistics().requestsGenerated == 1,
+            "firewall did not count the generated request");
+    require(loadBalancer.statistics().requestsRejected == 1,
+            "firewall did not count the rejected request");
+    require(loadBalancer.queueSize() == 0, "blocked request entered the queue");
 }
 
 void testInitialQueueHasExactAcceptedTarget() {
@@ -396,8 +383,8 @@ void testAllAcceptedRequestsCompleteExactlyOnce() {
 int main() {
     const std::vector<std::pair<std::string, std::function<void()>>> tests = {
         {"initial server pool and statistics", testInitialServerPoolAndStatistics},
-        {"configured firewall remains explicit",
-         testConfiguredFirewallRemainsExplicitlyUnimplemented},
+        {"configured firewall filters requests",
+         testConfiguredFirewallFiltersRequests},
         {"initial queue target", testInitialQueueHasExactAcceptedTarget},
         {"FIFO assignment across servers", testFifoAssignmentAcrossServers},
         {"cycle order and processing duration", testCycleOrderAndExactProcessingDuration},

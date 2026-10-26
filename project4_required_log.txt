@@ -1,0 +1,40 @@
+CSCE 412 Project 4 - Load Balancer Simulation
+Starting web servers: Clock cycles to simulate: Output mode [quiet/verbose] (default quiet):
+=== Simulation Start ===
+Configuration file: config.txt
+Output mode: quiet
+Starting servers: 20
+Starting queue size: 2000
+Clock cycles requested: 100000
+Processing-time range: 1-100 cycles
+Random seed: 412
+Blocked IP ranges: 2
+
+
+=== Simulation Summary ===
+Output mode: quiet
+Clock cycles completed: 100000
+Processing-time range: 1-100 cycles
+Starting servers: 20
+Starting queue size: 2000
+Requests generated: 51971
+Requests accepted: 51741
+Requests rejected: 230
+Requests completed: 49801
+Requests discarded: 0
+Random arrival batches: 24893
+Random arrival requests: 49961
+Ending queue size: 1915
+Requests processing: 25
+Ending servers: 25
+Busy servers: 25
+Idle servers: 0
+Servers added: 9
+Servers removed: 4
+Minimum servers: 20
+Maximum servers: 27
+Scaling events: 13
+First scaling event: cycle 1, added server, queue 1980, servers 20 -> 21
+Last scaling event: cycle 85956, added server, queue 1921, servers 24 -> 25
+Request accounting: consistent
+Server accounting: consistent
