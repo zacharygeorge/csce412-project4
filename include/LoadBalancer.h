@@ -77,7 +77,8 @@ public:
      * @throws std::runtime_error if the target cannot be reached within 100
      *         generated candidates per requested queue entry. This finite limit
      *         prevents an all-blocked configuration from hanging at startup.
-     * @note Generation and filtering are intentionally unimplemented in Milestone A.
+     * @throws NotImplementedError while configured firewall ranges remain reserved
+     *         for Milestone D.
      */
     void initializeRequestQueue(std::size_t acceptedRequestTarget,
                                 std::ostream& eventOutput);
@@ -90,7 +91,8 @@ public:
      * @return true if accepted into the queue; false if rejected by an IP range.
      * @post requestsGenerated and exactly one of requestsAccepted or
      *       requestsRejected are incremented, preserving generated = accepted + rejected.
-     * @note Filtering and queue insertion are intentionally unimplemented in Milestone A.
+     * @note Milestone C accepts requests when no blocked ranges are configured.
+     *       Configured firewall matching remains an explicit Milestone D operation.
      */
     bool submitRequest(Request request, std::ostream& eventOutput);
 
@@ -104,8 +106,7 @@ public:
      * The fixed event order is: increment clock; generate/filter arrivals; advance
      * existing server work; assign queued work to newly idle servers; perform at most
      * one eligible scaling action; refresh current counters. A newly added server first
-     * receives work during the next cycle. This behavior is intentionally unimplemented
-     * in Milestone A.
+     * receives work during the next cycle.
      */
     void runCycle(std::ostream& eventOutput);
 
@@ -126,6 +127,13 @@ public:
 
     /** @return Current number of managed web servers. */
     std::size_t serverCount() const noexcept;
+
+    /**
+     * Exposes read-only server state for demonstrations and deterministic tests.
+     *
+     * @return The managed servers in assignment order.
+     */
+    const std::vector<WebServer>& servers() const noexcept;
 
     /** @return Number of servers currently processing requests. */
     std::size_t busyServerCount() const noexcept;
@@ -168,7 +176,10 @@ private:
      */
     bool removeIdleServer(std::ostream& eventOutput);
 
-    /** @return true when the source IP falls inside any configured blocked range. */
+    /**
+     * @return false when no firewall ranges are configured.
+     * @throws NotImplementedError when range matching is requested before Milestone D.
+     */
     bool isBlockedSourceIp(std::string_view sourceIp) const;
 
     /**

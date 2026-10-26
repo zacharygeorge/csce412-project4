@@ -62,15 +62,15 @@ unhelpful message for every unchanged clock cycle.
 ## Current implementation status
 
 The driver, ownership model, interfaces, contracts, configuration schema, and
-basic build are present. Request construction, IPv4 validation, reproducible
-random request generation, and one-request-at-a-time WebServer processing are
-implemented and covered by focused automated tests.
+basic build are present. Request construction, reproducible random generation,
+one-request-at-a-time WebServer processing, FIFO queue assignment, incoming
+traffic, simulation cycles, core statistics, and cooldown-controlled dynamic
+scaling are implemented and covered by focused automated tests.
 
 The following operations deliberately throw a `NotImplementedError` naming the
-unfinished method: configuration-file parsing, IP-range matching, load-balancer
-queue initialization and submission, arrival generation, firewall filtering,
-dynamic scaling, simulation cycles, and final summary output. The executable
-therefore compiles but is not yet a working end-to-end simulation.
+unfinished method: configuration-file parsing, IP-range matching, configured
+firewall filtering, and final summary output. The executable therefore compiles,
+but configuration loading still prevents it from running end to end.
 
 ## Build
 
